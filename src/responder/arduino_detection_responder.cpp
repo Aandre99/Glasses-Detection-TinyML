@@ -20,16 +20,16 @@ limitations under the License.
 #ifndef ARDUINO_EXCLUDE_CODE
 
 #include "detection_responder.h"
-
 #include "Arduino.h"
 
 // Flash the blue LED after each inference
 void RespondToDetection(tflite::ErrorReporter* error_reporter,
-                        int8_t person_score, int8_t no_person_score) {
+                        float person_score, float no_person_score) {
   static bool is_initialized = false;
   if (!is_initialized) {
     // Pins for the built-in RGB LEDs on the Arduino Nano 33 BLE Sense
-//    pinMode(LEDR, OUTPUT);
+    // pinMode(LEDR, OUTPUT);
+    pinMode(LED_BUILTIN, OUTPUT);
     pinMode(LEDG, OUTPUT);
     pinMode(LEDB, OUTPUT);
     is_initialized = true;
@@ -40,29 +40,26 @@ void RespondToDetection(tflite::ErrorReporter* error_reporter,
 
   // Switch the person/not person LEDs off
   digitalWrite(LEDG, HIGH);
-  digitalWrite(LEDB, HIGH);
+  digitalWrite(LEDR, HIGH);
 
   // Flash the blue LED after every inference.
-//  digitalWrite(LEDB, LOW);
-//  delay(50);
-//  digitalWrite(LEDB, HIGH);
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(50);
+  digitalWrite(LED_BUILTIN, HIGH);
 
   // Switch on the green LED when a person is detected,
   // the red when no person is detected
-
-  char* result = "";
-  
   if (person_score > no_person_score) {
-    result = " ++++ With Glasses ++++ \n";
     digitalWrite(LEDG, LOW);
-    digitalWrite(LEDB, HIGH);
+    digitalWrite(LEDR, HIGH);
+    TF_LITE_REPORT_ERROR(error_reporter, "Glasses Detected (%d)",
+                        static_cast<int>(person_score * 100));
   } else {
-    result = "---- Without Glasses ----\n";
     digitalWrite(LEDG, HIGH);
-    digitalWrite(LEDB, LOW);
+    digitalWrite(LEDR, LOW);
+    TF_LITE_REPORT_ERROR(error_reporter, "No Glasses Detected (%d)",
+                        static_cast<int>(no_person_score * 100));
   }
-
-  TF_LITE_REPORT_ERROR(error_reporter, result);
 }
 
 #endif  // ARDUINO_EXCLUDE_CODE

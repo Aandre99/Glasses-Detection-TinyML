@@ -13,14 +13,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+#include <Arduino.h>
 #include <TensorFlowLite.h>
 
-#include "main_functions.h"
+#include "responder/detection_responder.h"
+#include "image_provider/image_provider.h"
 
-#include "detection_responder.h"
-#include "image_provider.h"
-#include "model_settings.h"
-#include "person_detect_model_data.h"
+#include "model/model_settings.h"
+#include "model/person_detect_model_data.h"
+
 #include "tensorflow/lite/micro/micro_error_reporter.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
@@ -42,8 +43,8 @@ TfLiteTensor* input = nullptr;
 // signed value.
 
 // An area of memory to use for input, output, and intermediate arrays.
-constexpr int kTensorArenaSize = 170 * 1024;
-static uint8_t tensor_arena[kTensorArenaSize];
+constexpr int kTensorArenaSize = 50 * 1024;
+alignas(16) uint8_t tensor_arena[kTensorArenaSize];
 }  // namespace
 
 // The name of this function is important for Arduino compatibility.
@@ -73,17 +74,17 @@ void setup() {
   //
   // tflite::AllOpsResolver resolver;
   // NOLINTNEXTLINE(runtime-global-variables)
-  static tflite::MicroMutableOpResolver<7> micro_op_resolver;
-  
+  static tflite::MicroMutableOpResolver<6> micro_op_resolver;
+  // micro_op_resolver.AddAveragePool2D();
   micro_op_resolver.AddConv2D();
-//  micro_op_resolver.AddRelu();
   micro_op_resolver.AddMaxPool2D();
+  micro_op_resolver.AddDepthwiseConv2D();
   micro_op_resolver.AddFullyConnected();
+  micro_op_resolver.AddReshape();
   micro_op_resolver.AddSoftmax();
-  micro_op_resolver.AddReshape();  // Flatten is treated as Reshape
-  micro_op_resolver.AddQuantize(); // Add Quantize operation
-  micro_op_resolver.AddDequantize(); // Add Dequantize operation
-  
+  // micro_op_resolver.AddQuantize();
+  // micro_op_resolver.AddDequantize();
+
   // Build an interpreter to run the model with.
   // NOLINTNEXTLINE(runtime-global-variables)
   static tflite::MicroInterpreter static_interpreter(
@@ -116,9 +117,14 @@ void loop() {
 
   TfLiteTensor* output = interpreter->output(0);
 
-    // Quantized scores
-  int8_t person_score = output->data.int8[kPersonIndex];
-  int8_t no_person_score = output->data.int8[kNotAPersonIndex];
-  
-  RespondToDetection(error_reporter, person_score, no_person_score);
+  // Process the inference results.
+  int8_t person_score = output->data.uint8[kPersonIndex];
+  int8_t no_person_score = output->data.uint8[kNotAPersonIndex];
+
+  float person_score_f =
+      (person_score - output->params.zero_point) * output->params.scale;
+  float no_person_score_f =
+      (no_person_score - output->params.zero_point) * output->params.scale;
+
+  RespondToDetection(error_reporter, person_score_f, no_person_score_f);
 }
