@@ -49,6 +49,7 @@ alignas(16) uint8_t tensor_arena[kTensorArenaSize];
 
 // The name of this function is important for Arduino compatibility.
 void setup() {
+  Serial.begin(115200);
   // Set up logging. Google style is to avoid globals or statics because of
   // lifetime uncertainty, but since this has a trivial destructor it's okay.
   // NOLINTNEXTLINE(runtime-global-variables)
@@ -105,10 +106,24 @@ void setup() {
 // The name of this function is important for Arduino compatibility.
 void loop() {
   // Get image from provider.
+
+  while (true)
+  {
+    char c;
+    while (Serial.available()){
+      c = Serial.read();
+    }
+    if (c == 's')break;
+  }
+
   if (kTfLiteOk != GetImage(error_reporter, kNumCols, kNumRows, kNumChannels,
                             input->data.int8)) {
     TF_LITE_REPORT_ERROR(error_reporter, "Image capture failed.");
   }
+
+  Serial.write((uint8_t*) input->data.int8, kNumCols * kNumRows * kNumChannels);
+
+  //,
 
   // Run the model on this input and make sure it succeeds.
   if (kTfLiteOk != interpreter->Invoke()) {
