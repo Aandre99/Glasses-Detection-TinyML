@@ -5,7 +5,7 @@ import time
 
 ser = serial.Serial('COM7', 115200)
 
-def receive_image_from_serial(port='COM3', baudrate=9600, image_size=(64, 64, 1)):
+def receive_image_from_serial(image_size=(64, 64, 1)):
 	total_bytes = image_size[0] * image_size[1]
 	
 	# Ler os dados da porta serial
@@ -16,10 +16,10 @@ def receive_image_from_serial(port='COM3', baudrate=9600, image_size=(64, 64, 1)
 	
 	return image
 
-def plot_image(image):
+def plot_image(image, title):
     plt.imshow(image, cmap='gray')
     plt.draw()
-    plt.title('Received Image')
+    plt.title(title)
     plt.axis('off')
     plt.pause(0.01)
       
@@ -33,7 +33,6 @@ if __name__ == "__main__":
         
         ser.write('s'.encode('utf-8'))
         image = receive_image_from_serial()
-        plot_image(image)
         s = ser.readline().decode('utf-8')
-        print(s)
+        plot_image(image, s[:-2])
         ser.flushInput()
