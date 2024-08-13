@@ -18,6 +18,25 @@
 #include "model/model_settings.h"
 #include <TinyMLShield.h>
 
+int8_t bilinear_interpolate(const uint8_t* data, float x, float y, int width) {
+  int x1 = static_cast<int>(x);
+  int y1 = static_cast<int>(y);
+  int x2 = x1 + 1;
+  int y2 = y1 + 1;
+
+  float a = x - x1;
+  float b = y - y1;
+
+  int8_t value = static_cast<int8_t>(
+    (1 - a) * (1 - b) * data[y1 * width + x1] +
+    a * (1 - b) * data[y1 * width + x2] +
+    (1 - a) * b * data[y2 * width + x1] +
+    a * b * data[y2 * width + x2]
+  );
+
+  return value - 128; // convert TF input image to signed 8-bit
+}
+
 // Get an image from the camera module
 TfLiteStatus GetImage(tflite::ErrorReporter* error_reporter, int image_width,
                       int image_height, int channels, int8_t* image_data) {
@@ -39,14 +58,27 @@ TfLiteStatus GetImage(tflite::ErrorReporter* error_reporter, int image_width,
   // Read camera data
   Camera.readFrame(data);
 
-  int min_x = (176 - kNumRows) / 2;
+  /*int min_x = (176 - kNumRows) / 2;
   int min_y = (144 - kNumCols) / 2;
-  int index = 0;
+  int index = 0;*/
 
-  // Crop 96x96 image. This lowers FOV, ideally we would downsample but this is simpler. 
+  /*// Crop 64x64 image. This lowers FOV, ideally we would downsample but this is simpler. 
   for (int y = min_y; y < min_y + kNumCols; y++) {
     for (int x = min_x; x < min_x + kNumRows; x++) {
       image_data[index++] = static_cast<int8_t>(data[(y * 176) + x] - 128); // convert TF input image to signed 8-bit
+    }
+  }*/
+
+  int index = 0;
+  float scale_x = 176.0 / kNumRows;
+  float scale_y = 144.0 / kNumCols;
+
+  // Resize 64x64 image using bilinear interpolation
+  for (int y = 0; y < kNumCols; y++) {
+    for (int x = 0; x < kNumRows; x++) {
+      float src_x = x * scale_x;
+      float src_y = y * scale_y;
+      image_data[index++] = bilinear_interpolate(data, src_x, src_y, 176);
     }
   }
 

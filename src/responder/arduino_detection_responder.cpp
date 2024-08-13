@@ -50,13 +50,14 @@ void RespondToDetection(tflite::ErrorReporter* error_reporter,
   // Switch on the green LED when a person is detected,
   // the red when no person is detected
   if (person_score > no_person_score) {
+   
     digitalWrite(LEDG, LOW);
-    digitalWrite(LEDR, HIGH);
+    digitalWrite(LEDB, HIGH);
     TF_LITE_REPORT_ERROR(error_reporter, "Glasses Detected (%d)",
                         static_cast<int>(person_score * 100));
   } else {
     digitalWrite(LEDG, HIGH);
-    digitalWrite(LEDR, LOW);
+    digitalWrite(LEDB, LOW);
     TF_LITE_REPORT_ERROR(error_reporter, "No Glasses Detected (%d)",
                         static_cast<int>(no_person_score * 100));
   }
